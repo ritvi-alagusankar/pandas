@@ -247,8 +247,8 @@ def test_temporary_file(all_parsers, temp_file):
         new_file.flush()
         new_file.seek(0)
 
-        if parser.engine == "pyarrow":
-            msg = "the 'pyarrow' engine does not support regex separators"
+        if parser.engine == "pyarrow" or parser.engine == "polars":
+            msg = "the '{}' engine does not support regex separators".format(parser.engine)
             with pytest.raises(ValueError, match=msg):
                 parser.read_csv(new_file, sep=r"\s+", header=None)
             return

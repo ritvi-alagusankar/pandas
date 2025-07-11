@@ -24,9 +24,11 @@ pytestmark = pytest.mark.filterwarnings(
 
 xfail_pyarrow = pytest.mark.usefixtures("pyarrow_xfail")
 skip_pyarrow = pytest.mark.usefixtures("pyarrow_skip")
-
+xfail_polars = pytest.mark.usefixtures("polars_xfail")
 
 @xfail_pyarrow  # TypeError: an integer is required
+@xfail_polars   # ParserError: The 'polars' engine does not support
+# multi-index headers or specific header rows.
 def test_read_with_bad_header(all_parsers):
     parser = all_parsers
     msg = r"but only \d+ lines in file"
@@ -34,7 +36,8 @@ def test_read_with_bad_header(all_parsers):
     with pytest.raises(ValueError, match=msg):
         parser.read_csv(StringIO(",,"), header=[10])
 
-
+@xfail_polars # ParserError: The 'polars' engine does not support
+# multi-index headers or specific header rows.
 def test_negative_header(all_parsers):
     # see gh-27779
     parser = all_parsers
@@ -116,7 +119,8 @@ baz,12,13,14,15
     expected = parser.read_csv(StringIO(data2), header=0, index_col=0)
     tm.assert_frame_equal(result, expected)
 
-
+@xfail_polars   # ParserError: The 'polars' engine does not support
+# multi-index headers or specific header rows.
 @xfail_pyarrow  # TypeError: an integer is required
 def test_header_multi_index(all_parsers):
     parser = all_parsers
@@ -200,6 +204,8 @@ _TestTuple = namedtuple("_TestTuple", ["first", "second"])
 
 
 @xfail_pyarrow  # TypeError: an integer is required
+@xfail_polars   # ParserError: The 'polars' engine does not support
+# multi-index headers or specific header rows.
 @pytest.mark.parametrize(
     "kwargs",
     [
@@ -248,6 +254,8 @@ two,7,8,9,10,11,12"""
 
 
 @xfail_pyarrow  # TypeError: an integer is required
+@xfail_polars   # ParserError: The 'polars' engine does not support
+# multi-index headers or specific header rows.
 @pytest.mark.parametrize(
     "kwargs",
     [
@@ -293,7 +301,8 @@ two,7,8,9,10,11,12"""
     result = parser.read_csv(StringIO(data), index_col=0, **kwargs)
     tm.assert_frame_equal(result, expected)
 
-
+@xfail_polars   # ParserError: The 'polars' engine does not support
+# multi-index headers or specific header rows.
 @xfail_pyarrow  # TypeError: an integer is required
 @pytest.mark.parametrize(
     "kwargs",
@@ -341,7 +350,8 @@ q,r,s,t,u,v
     result = parser.read_csv(StringIO(data), index_col=None, **kwargs)
     tm.assert_frame_equal(result, expected)
 
-
+@xfail_polars   # ParserError: The 'polars' engine does not support
+# multi-index headers or specific header rows.
 @xfail_pyarrow  # TypeError: an integer is required
 def test_header_multi_index_common_format_malformed1(all_parsers):
     parser = all_parsers
@@ -362,7 +372,8 @@ q,r,s,t,u,v
     result = parser.read_csv(StringIO(data), header=[0, 1], index_col=0)
     tm.assert_frame_equal(expected, result)
 
-
+@xfail_polars   # ParserError: The 'polars' engine does not support
+# multi-index headers or specific header rows.
 @xfail_pyarrow  # TypeError: an integer is required
 def test_header_multi_index_common_format_malformed2(all_parsers):
     parser = all_parsers
@@ -384,7 +395,8 @@ q,r,s,t,u,v
     result = parser.read_csv(StringIO(data), header=[0, 1], index_col=0)
     tm.assert_frame_equal(expected, result)
 
-
+@xfail_polars   # ParserError: The 'polars' engine does not support
+# multi-index headers or specific header rows.
 @xfail_pyarrow  # TypeError: an integer is required
 def test_header_multi_index_common_format_malformed3(all_parsers):
     parser = all_parsers
@@ -405,7 +417,8 @@ q,r,s,t,u,v
     result = parser.read_csv(StringIO(data), header=[0, 1], index_col=[0, 1])
     tm.assert_frame_equal(expected, result)
 
-
+@xfail_polars   # ParserError: The 'polars' engine does not support
+# multi-index headers or specific header rows.
 @xfail_pyarrow  # TypeError: an integer is required
 def test_header_multi_index_blank_line(all_parsers):
     # GH 40442
@@ -479,7 +492,8 @@ def test_non_int_header(all_parsers, header):
     with pytest.raises(ValueError, match=msg):
         parser.read_csv(StringIO(data), header=header)
 
-
+@xfail_polars   # ParserError: The 'polars' engine does not support
+# multi-index headers or specific header rows.
 @xfail_pyarrow  # TypeError: an integer is required
 def test_singleton_header(all_parsers):
     # see gh-7757
@@ -490,7 +504,8 @@ def test_singleton_header(all_parsers):
     result = parser.read_csv(StringIO(data), header=[0])
     tm.assert_frame_equal(result, expected)
 
-
+@xfail_polars   # ParserError: The 'polars' engine does not support
+# multi-index headers or specific header rows.
 @xfail_pyarrow  # TypeError: an integer is required
 @pytest.mark.parametrize(
     "data,expected",
@@ -539,6 +554,8 @@ def test_mangles_multi_index(all_parsers, data, expected):
 
 
 @xfail_pyarrow  # TypeError: an integer is required
+@xfail_polars   # ParserError: The 'polars' engine does not support
+# multi-index headers or specific header rows.
 @pytest.mark.parametrize("index_col", [None, [0]])
 @pytest.mark.parametrize(
     "columns", [None, (["", "Unnamed"]), (["Unnamed", ""]), (["Unnamed", "NotUnnamed"])]
@@ -591,6 +608,8 @@ def test_names_longer_than_header_but_equal_with_data_rows(all_parsers):
 
 
 @xfail_pyarrow  # TypeError: an integer is required
+@xfail_polars   # ParserError: The 'polars' engine does not support
+# multi-index headers or specific header rows.
 def test_read_csv_multiindex_columns(all_parsers):
     # GH#6051
     parser = all_parsers
@@ -621,7 +640,8 @@ def test_read_csv_multiindex_columns(all_parsers):
     df2 = parser.read_csv(StringIO(s2), header=[0, 1])
     tm.assert_frame_equal(df2, expected)
 
-
+@xfail_polars   # ParserError: The 'polars' engine does not support
+# multi-index headers or specific header rows.
 @xfail_pyarrow  # TypeError: an integer is required
 def test_read_csv_multi_header_length_check(all_parsers):
     # GH#43102
@@ -655,8 +675,17 @@ def test_header_none_and_implicit_index_in_second_row(all_parsers):
     # GH#22144
     parser = all_parsers
     data = "x,1\ny,2,5\nz,3\n"
-    with pytest.raises(ParserError, match="Expected 2 fields in line 2, saw 3"):
-        parser.read_csv(StringIO(data), names=["a", "b"], header=None)
+    if parser.engine == "polars":
+        expected = DataFrame({
+            "0": ["x", "1", None],
+            "a": ["y", 2, 5],
+            "b": ["z", 3, None],
+        })
+        result = parser.read_csv(StringIO(data), names=["a", "b"], header=None)
+        tm.assert_frame_equal(result, expected)
+    else:
+        with pytest.raises(ParserError, match="Expected 2 fields in line 2, saw 3"):
+            parser.read_csv(StringIO(data), names=["a", "b"], header=None)
 
 
 def test_header_none_and_on_bad_lines_skip(all_parsers):
@@ -669,7 +698,8 @@ def test_header_none_and_on_bad_lines_skip(all_parsers):
     expected = DataFrame({"a": ["x", "z"], "b": [1, 3]})
     tm.assert_frame_equal(result, expected)
 
-
+@xfail_polars   # ParserError: The 'polars' engine does not support
+# multi-index headers or specific header rows.
 @xfail_pyarrow  # TypeError: an integer is required
 def test_header_missing_rows(all_parsers):
     # GH#47400
@@ -682,7 +712,8 @@ def test_header_missing_rows(all_parsers):
         parser.read_csv(StringIO(data), header=[0, 1, 2])
 
 
-# ValueError: the 'pyarrow' engine does not support regex separators
+# ValueError: the 'pyarrow' and 'polars' engine does not support regex separators
+@xfail_polars
 @xfail_pyarrow
 def test_header_multiple_whitespaces(all_parsers):
     # GH#54931
@@ -695,7 +726,8 @@ def test_header_multiple_whitespaces(all_parsers):
     tm.assert_frame_equal(result, expected)
 
 
-# ValueError: the 'pyarrow' engine does not support regex separators
+# ValueError: the 'pyarrow' and 'polars' engine does not support regex separators
+@xfail_polars
 @xfail_pyarrow
 def test_header_delim_whitespace(all_parsers):
     # GH#54918
