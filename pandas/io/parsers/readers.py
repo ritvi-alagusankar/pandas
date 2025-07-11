@@ -59,6 +59,7 @@ from pandas.io.common import (
     validate_header_arg,
 )
 from pandas.io.parsers.arrow_parser_wrapper import ArrowParserWrapper
+from pandas.io.parsers.polar_parser_wrapper import PolarsParserWrapper
 from pandas.io.parsers.base_parser import (
     ParserBase,
     is_index_col,
@@ -691,15 +692,16 @@ def _read(
             f"encoding_errors must be a string, got {type(errors).__name__}"
         )
 
-    if kwds.get("engine") == "pyarrow":
+    if kwds.get("engine") in ["pyarrow", "polars"]:
+        engine = kwds["engine"]
         if iterator:
             raise ValueError(
-                "The 'iterator' option is not supported with the 'pyarrow' engine"
+                "The 'iterator' option is not supported with the '{}' engine".format(engine)
             )
 
         if chunksize is not None:
             raise ValueError(
-                "The 'chunksize' option is not supported with the 'pyarrow' engine"
+                "The 'chunksize' option is not supported with the '{}' engine".format(engine)
             )
     else:
         chunksize = validate_integer("chunksize", chunksize, 1)
@@ -1428,6 +1430,7 @@ class TextFileReader(abc.Iterator):
     ) -> ParserBase:
         mapping: dict[str, type[ParserBase]] = {
             "c": CParserWrapper,
+            "polars" : PolarsParserWrapper,
             "python": PythonParser,
             "pyarrow": ArrowParserWrapper,
             "python-fwf": FixedWidthFieldParser,
@@ -1486,6 +1489,13 @@ class TextFileReader(abc.Iterator):
             try:
                 # error: "ParserBase" has no attribute "read"
                 df = self._engine.read()  # type: ignore[attr-defined]
+            except Exception:
+                self.close()
+                raise
+        elif self.engine == "polars":
+            nrows = validate_integer("nrows", nrows)
+            try:
+                df = self._engine.read(nrows=nrows)  # type: ignore[attr-defined]
             except Exception:
                 self.close()
                 raise
