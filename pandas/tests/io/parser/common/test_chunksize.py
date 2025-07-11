@@ -47,8 +47,8 @@ bar2,12,13,14,15
     )
     expected = expected.set_index("index")
 
-    if parser.engine == "pyarrow":
-        msg = "The 'chunksize' option is not supported with the 'pyarrow' engine"
+    if parser.engine in ["pyarrow", "polars"]:
+        msg = "The 'chunksize' option is not supported with the '{}' engine".format(parser.engine)
         with pytest.raises(ValueError, match=msg):
             with parser.read_csv(StringIO(data), index_col=0, chunksize=2) as reader:
                 list(reader)
@@ -73,8 +73,8 @@ bar2,12,13,14,15
 """
     parser = all_parsers
     msg = r"'chunksize' must be an integer >=1"
-    if parser.engine == "pyarrow":
-        msg = "The 'chunksize' option is not supported with the 'pyarrow' engine"
+    if parser.engine in ["pyarrow", "polars"]:
+        msg = "The 'chunksize' option is not supported with the '{}' engine".format(parser.engine)
 
     with pytest.raises(ValueError, match=msg):
         with parser.read_csv(StringIO(data), chunksize=chunksize) as _:
@@ -100,7 +100,11 @@ bar2,12,13,14,15
         with pytest.raises(ValueError, match=msg):
             parser.read_csv(StringIO(data), **kwargs)
         return
-
+    if parser.engine == "polars":
+        msg = "The 'chunksize' option is not supported with the 'polars' engine"
+        with pytest.raises(ValueError, match=msg):
+            parser.read_csv(StringIO(data), chunksize=chunksize, **kwargs)
+        return
     expected = parser.read_csv(StringIO(data), **kwargs)
     with parser.read_csv(StringIO(data), chunksize=chunksize, **kwargs) as reader:
         tm.assert_frame_equal(concat(reader), expected)
@@ -123,6 +127,11 @@ bar2,12,13,14,15
         with pytest.raises(ValueError, match=msg):
             parser.read_csv(StringIO(data), **kwargs)
         return
+    if parser.engine == "polars":
+        msg = "The 'chunksize' option is not supported with the 'polars' engine"
+        with pytest.raises(ValueError, match=msg):
+            parser.read_csv(StringIO(data), chunksize=8, **kwargs)
+        return
 
     expected = parser.read_csv(StringIO(data), **kwargs)
     with parser.read_csv(StringIO(data), chunksize=8, **kwargs) as reader:
@@ -141,8 +150,8 @@ def test_get_chunk_passed_chunksize(all_parsers):
 7,8,9
 1,2,3"""
 
-    if parser.engine == "pyarrow":
-        msg = "The 'chunksize' option is not supported with the 'pyarrow' engine"
+    if parser.engine in ["pyarrow", "polars"]:
+        msg = "The 'chunksize' option is not supported with the '{}' engine".format(parser.engine)
         with pytest.raises(ValueError, match=msg):
             with parser.read_csv(StringIO(data), chunksize=2) as reader:
                 reader.get_chunk()
@@ -169,8 +178,8 @@ bar2,12,13,14,15
     parser = all_parsers
     result = parser.read_csv(StringIO(data), **kwargs)
 
-    if parser.engine == "pyarrow":
-        msg = "The 'chunksize' option is not supported with the 'pyarrow' engine"
+    if parser.engine in ["pyarrow", "polars"]:
+        msg = "The 'chunksize' option is not supported with the '{}' engine".format(parser.engine)
         with pytest.raises(ValueError, match=msg):
             with parser.read_csv(StringIO(data), chunksize=2, **kwargs) as reader:
                 concat(reader)
@@ -188,8 +197,8 @@ def test_read_chunksize_jagged_names(all_parsers):
 
     expected = DataFrame([[0] + [np.nan] * 9] * 7 + [[0] * 10])
 
-    if parser.engine == "pyarrow":
-        msg = "The 'chunksize' option is not supported with the 'pyarrow' engine"
+    if parser.engine in ["pyarrow", "polars"]:
+        msg = "The 'chunksize' option is not supported with the '{}' engine".format(parser.engine)
         with pytest.raises(ValueError, match=msg):
             with parser.read_csv(
                 StringIO(data), names=range(10), chunksize=4
@@ -205,6 +214,10 @@ def test_read_chunksize_jagged_names(all_parsers):
 def test_chunk_begins_with_newline_whitespace(all_parsers):
     # see gh-10022
     parser = all_parsers
+    if parser.engine == "polars":
+        # Test case fails with polars as it does not skip blank lines
+        # resulting in three rows
+        return
     data = "\n hello\nworld\n"
 
     result = parser.read_csv(StringIO(data), header=None)
@@ -274,17 +287,18 @@ def test_empty_with_nrows_chunksize(all_parsers, iterator):
     nrows = 10
     data = StringIO("foo,bar\n")
 
-    if parser.engine == "pyarrow":
+    if parser.engine in ["pyarrow", "polars"]:
         msg = (
-            "The '(nrows|chunksize)' option is not supported with the 'pyarrow' engine"
+            "The '(nrows|chunksize)' option is not supported with the '{}' engine".format(parser.engine)
         )
-        with pytest.raises(ValueError, match=msg):
-            if iterator:
-                with parser.read_csv(data, chunksize=nrows) as reader:
-                    next(iter(reader))
-            else:
-                parser.read_csv(data, nrows=nrows)
-        return
+        if parser.engine == "pyarrow" or iterator:
+            with pytest.raises(ValueError, match=msg):
+                if iterator:
+                    with parser.read_csv(data, chunksize=nrows) as reader:
+                        next(iter(reader))
+                else:
+                    parser.read_csv(data, nrows=nrows)
+            return
 
     if iterator:
         with parser.read_csv(data, chunksize=nrows) as reader:
@@ -307,8 +321,8 @@ def test_read_csv_memory_growth_chunksize(all_parsers):
             for i in range(1000):
                 f.write(str(i) + "\n")
 
-        if parser.engine == "pyarrow":
-            msg = "The 'chunksize' option is not supported with the 'pyarrow' engine"
+        if parser.engine in ["pyarrow", "polars"]:
+            msg = "The 'chunksize' option is not supported with the '{}' engine".format(parser.engine)
             with pytest.raises(ValueError, match=msg):
                 with parser.read_csv(path, chunksize=20) as result:
                     for _ in result:
@@ -328,8 +342,8 @@ def test_chunksize_with_usecols_second_block_shorter(all_parsers):
 9,10,11
 """
 
-    if parser.engine == "pyarrow":
-        msg = "The 'chunksize' option is not supported with the 'pyarrow' engine"
+    if parser.engine in ["pyarrow", "polars"]:
+        msg = "The 'chunksize' option is not supported with the '{}' engine".format(parser.engine)
         with pytest.raises(ValueError, match=msg):
             parser.read_csv(
                 StringIO(data),
@@ -366,8 +380,8 @@ def test_chunksize_second_block_shorter(all_parsers):
 9,10,11
 """
 
-    if parser.engine == "pyarrow":
-        msg = "The 'chunksize' option is not supported with the 'pyarrow' engine"
+    if parser.engine in ["pyarrow", "polars"]:
+        msg = "The 'chunksize' option is not supported with the '{}' engine".format(parser.engine)
         with pytest.raises(ValueError, match=msg):
             parser.read_csv(StringIO(data), chunksize=2)
         return

@@ -94,6 +94,9 @@ class PyArrowParser(BaseParser):
     engine = "pyarrow"
     float_precision_choices = [None]
 
+class PolarsParser(BaseParser):
+    engine = "polars"
+    float_precision_choices = [None]
 
 @pytest.fixture
 def csv_dir_path(datapath):
@@ -115,6 +118,7 @@ _cParserHighMemory = CParserHighMemory
 _cParserLowMemory = CParserLowMemory
 _pythonParser = PythonParser
 _pyarrowParser = PyArrowParser
+_polarsParser = PolarsParser
 
 _py_parsers_only = [_pythonParser]
 _c_parsers_only = [_cParserHighMemory, _cParserLowMemory]
@@ -127,14 +131,16 @@ _pyarrow_parsers_only = [
         ],
     )
 ]
+_polars_parsers_only = [_polarsParser]
 
-_all_parsers = [*_c_parsers_only, *_py_parsers_only, *_pyarrow_parsers_only]
+_all_parsers = [*_c_parsers_only, *_py_parsers_only, *_pyarrow_parsers_only, *_polars_parsers_only]
 
 _py_parser_ids = ["python"]
 _c_parser_ids = ["c_high", "c_low"]
 _pyarrow_parsers_ids = ["pyarrow"]
+_polars_parsers_ids = ["polars"]
 
-_all_parser_ids = [*_c_parser_ids, *_py_parser_ids, *_pyarrow_parsers_ids]
+_all_parser_ids = [*_c_parser_ids, *_py_parser_ids, *_pyarrow_parsers_ids, *_polars_parsers_ids]
 
 
 @pytest.fixture(params=_all_parsers, ids=_all_parser_ids)
@@ -335,3 +341,22 @@ def pyarrow_skip(request):
         return
     if parser.engine == "pyarrow":
         pytest.skip(reason="https://github.com/apache/arrow/issues/38676")
+
+@pytest.fixture
+def polars_xfail(request):
+    """
+    Fixture that xfails a test if the engine is polars.
+
+    Use if failure is do to unsupported keywords or inconsistent results.
+    """
+    if "all_parsers" in request.fixturenames:
+        parser = request.getfixturevalue("all_parsers")
+    elif "all_parsers_all_precisions" in request.fixturenames:
+        # Return value is tuple of (engine, precision)
+        parser = request.getfixturevalue("all_parsers_all_precisions")[0]
+    else:
+        return
+    if parser.engine == "polars":
+        mark = pytest.mark.xfail(reason="polars doesn't support this.")
+        request.applymarker(mark)
+
