@@ -292,4 +292,4 @@ class ArrowParserWrapper(ParserBase):
                 table, dtype_backend=dtype_backend, null_to_int64=True
             )
 
-        return df 
+        return self._finalize_pandas_output(frame)
