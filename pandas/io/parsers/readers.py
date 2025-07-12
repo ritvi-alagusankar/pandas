@@ -600,6 +600,34 @@ _pyarrow_unsupported = {
     "low_memory",
 }
 
+# TODO Edit this accurately
+_polars_unsupported = {
+    "skipinitialspace",
+    "skipfooter", 
+    "keep_default_na",
+    "na_filter",
+    "skip_blank_lines",
+    "converters",
+    "false_values",
+    "true_values",
+    "verbose",
+    "keep_date_col",
+    "date_parser",
+    "date_format",
+    "dayfirst",
+    "cache_dates",
+    "quoting",
+    "doublequote",
+    "escapechar",
+    "encoding_errors",
+    "dialect",
+    "memory_map",
+    "float_precision",
+    "dtype_backend",
+    "delim_whitespace",
+    "thousands",
+    "na_values",
+}
 
 @overload
 def validate_integer(name: str, val: None, min_val: int = ...) -> None: ...
@@ -1222,6 +1250,15 @@ class TextFileReader(abc.Iterator):
             ):
                 raise ValueError(
                     f"The {argname!r} option is not supported with the 'pyarrow' engine"
+                )
+            if (
+                engine == "polars"
+                and argname in _polars_unsupported
+                and value != default
+                and value != getattr(value, "value", default)
+            ):
+                raise ValueError(
+                    f"The {argname!r} option is not supported with the 'polars' engine"
                 )
             options[argname] = value
 
