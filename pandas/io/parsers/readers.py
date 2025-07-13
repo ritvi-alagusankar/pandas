@@ -142,6 +142,7 @@ if TYPE_CHECKING:
         float_precision: Literal["high", "legacy", "round_trip"] | None
         storage_options: StorageOptions | None
         dtype_backend: DtypeBackend | lib.NoDefault
+
 else:
     _read_shared = dict
 
@@ -603,9 +604,10 @@ _pyarrow_unsupported = {
 # TODO Edit this accurately
 _polars_unsupported = {
     "skipinitialspace",
-    "skipfooter", 
-    "keep_default_na",
-    "na_filter",
+    "skipfooter",
+    "keep_default_na",  # TODO: check if this is supportable
+    "na_values",  # TODO: check if this is supportable
+    "na_filter",  # TODO: check if this is supportable
     "skip_blank_lines",
     "converters",
     "false_values",
@@ -619,15 +621,14 @@ _polars_unsupported = {
     "quoting",
     "doublequote",
     "escapechar",
-    "encoding_errors",
     "dialect",
     "memory_map",
     "float_precision",
     "dtype_backend",
     "delim_whitespace",
     "thousands",
-    "na_values",
 }
+
 
 @overload
 def validate_integer(name: str, val: None, min_val: int = ...) -> None: ...
@@ -724,12 +725,16 @@ def _read(
         engine = kwds["engine"]
         if iterator:
             raise ValueError(
-                "The 'iterator' option is not supported with the '{}' engine".format(engine)
+                "The 'iterator' option is not supported with the '{}' engine".format(
+                    engine
+                )
             )
 
         if chunksize is not None:
             raise ValueError(
-                "The 'chunksize' option is not supported with the '{}' engine".format(engine)
+                "The 'chunksize' option is not supported with the '{}' engine".format(
+                    engine
+                )
             )
     else:
         chunksize = validate_integer("chunksize", chunksize, 1)
@@ -826,10 +831,9 @@ def read_csv(
     skipfooter: int = 0,
     nrows: int | None = None,
     # NA and Missing Data Handling
-    na_values: Hashable
-    | Iterable[Hashable]
-    | Mapping[Hashable, Iterable[Hashable]]
-    | None = None,
+    na_values: (
+        Hashable | Iterable[Hashable] | Mapping[Hashable, Iterable[Hashable]] | None
+    ) = None,
     keep_default_na: bool = True,
     na_filter: bool = True,
     skip_blank_lines: bool = True,
@@ -962,10 +966,9 @@ def read_table(
     skipfooter: int = 0,
     nrows: int | None = None,
     # NA and Missing Data Handling
-    na_values: Hashable
-    | Iterable[Hashable]
-    | Mapping[Hashable, Iterable[Hashable]]
-    | None = None,
+    na_values: (
+        Hashable | Iterable[Hashable] | Mapping[Hashable, Iterable[Hashable]] | None
+    ) = None,
     keep_default_na: bool = True,
     na_filter: bool = True,
     skip_blank_lines: bool = True,
@@ -1430,11 +1433,11 @@ class TextFileReader(abc.Iterator):
 
         # handle skiprows; this is internally handled by the
         # c-engine, so only need for python and pyarrow parsers
-        if engine == "pyarrow":
+        if engine in {"pyarrow", "polars"}:
             if not is_integer(skiprows) and skiprows is not None:
-                # pyarrow expects skiprows to be passed as an integer
+                # pyarrow and polars expect skiprows to be passed as an integer
                 raise ValueError(
-                    "skiprows argument must be an integer when using engine='pyarrow'"
+                    f"skiprows argument must be an integer when using engine='{engine}'"
                 )
         else:
             if is_integer(skiprows):
@@ -1467,7 +1470,7 @@ class TextFileReader(abc.Iterator):
     ) -> ParserBase:
         mapping: dict[str, type[ParserBase]] = {
             "c": CParserWrapper,
-            "polars" : PolarsParserWrapper,
+            "polars": PolarsParserWrapper,
             "python": PythonParser,
             "pyarrow": ArrowParserWrapper,
             "python-fwf": FixedWidthFieldParser,

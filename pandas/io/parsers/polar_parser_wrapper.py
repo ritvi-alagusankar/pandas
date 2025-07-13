@@ -5,6 +5,7 @@ from pandas.io.parsers.base_parser import ParserBase
 from pandas.core.dtypes.common import pandas_dtype
 from pandas.core.dtypes.inference import is_integer
 
+
 class PolarsParserWrapper(ParserBase):
     """
     CSV parser using Polars as the backend engine.
@@ -13,7 +14,7 @@ class PolarsParserWrapper(ParserBase):
     def __init__(self, src, **kwds):
         super().__init__(kwds)
         self.kwds = kwds
-        self.src = src 
+        self.src = src
 
     def read(self, nrows=None):
         """
@@ -34,27 +35,15 @@ class PolarsParserWrapper(ParserBase):
         df = lf.collect().to_pandas()
         return self._finalize_pandas_output(df)
 
-
     def _finalize_pandas_output(self, frame):
         """
         Processes data read in based on kwargs.
-
-        Parameters
-        ----------
-        frame: DataFrame
-            The DataFrame to process.
-
-        Returns
-        -------
-        DataFrame
-            The processed DataFrame.
         """
         num_cols = len(frame.columns)
         multi_index_named = True
         if self.header is None:
             if self.names is None:
-                if self.header is None:
-                    self.names = range(num_cols)
+                self.names = list(range(num_cols))
             if len(self.names) != num_cols:
                 columns_prefix = [str(x) for x in range(num_cols - len(self.names))]
                 self.names = columns_prefix + self.names
@@ -111,12 +100,11 @@ class PolarsParserWrapper(ParserBase):
         # Direct parameter mappings
         pandas_map = {
             "sep": "separator",
-            "delimiter": "separator", 
+            "delimiter": "separator",
             "names": "new_columns",
             "quotechar": "quote_char",
             "comment": "comment_prefix",
             "storage_options": "storage_options",
-            "encoding": "encoding",
             "low_memory": "low_memory",
         }
 
@@ -127,52 +115,105 @@ class PolarsParserWrapper(ParserBase):
                 if val is not None:
                     polars_kwargs[pl_key] = val
 
-                # Handle header parameter
-        header = opts["header"]
-        skiprows = opts.get("skiprows", 0)
-        if header in ("infer", 0):
-            polars_kwargs["has_header"] = True
-        elif header is None:
-            polars_kwargs["has_header"] = False
-        elif isinstance(header, list) or (isinstance(header, int) and header != 0):
-            if isinstance(header, int):
-                skiprows = header
-                polars_kwargs["has_header"] = True
-            elif isinstance(header, list) and len(header) == 1 and isinstance(header[0], int):
-                skiprows = header[0]
-                polars_kwargs["has_header"] = True
-            else:
-                raise NotImplementedError(
-                    "Polars does not support multiple header rows"
-                )
-            
-        # Handle skip rows
+        # Handle header and skiprows
+        header = opts.get("header", "infer")
+        skiprows = opts.get("skiprows", 0) or 0  # Default to 0 if skiprows is None
+
+        num_skiprows = 0
         if isinstance(skiprows, int):
-            polars_kwargs["skip_rows"] = skiprows
+            if skiprows < 0:
+                raise ValueError(
+                    f"skiprows must be a non-negative integer, got {skiprows}"
+                )
+            num_skiprows = skiprows
         elif isinstance(skiprows, (list, tuple)):
             if len(skiprows) == 0:
-                polars_kwargs["skip_rows"] = 0
+                num_skiprows = 0
             elif len(skiprows) == 1 and isinstance(skiprows[0], int):
-                polars_kwargs["skip_rows"] = skiprows[0]
+                if skiprows[0] < 0:
+                    raise ValueError(
+                        f"skiprows must be a non-negative integer, got {skiprows[0]}"
+                    )
+                num_skiprows = skiprows[0]
             else:
                 raise NotImplementedError(
-                    "Polars does not support skipping multiple rows by list or tuple of integers."
+                    "Polars does not support skipping multiple rows by a list/tuple."
                 )
         elif callable(skiprows):
-            raise NotImplementedError("Polars does not support callable skiprows argument.")
+            raise NotImplementedError(
+                "Polars does not support callable skiprows argument."
+            )
+        else:
+            raise TypeError(
+                f"skiprows must be int, list, tuple, or callable, got {type(skiprows)}"
+            )
 
+        if header is None:
+            polars_kwargs["has_header"] = False
+            polars_kwargs["skip_rows"] = num_skiprows
+
+        else:
+            if header == "infer" or header == 0:
+                polars_kwargs["skip_rows"] = num_skiprows
+            elif isinstance(header, int):
+                if header < 0:
+                    raise ValueError(
+                        f"header must be a non-negative integer, got {header}"
+                    )
+                polars_kwargs["skip_rows"] = num_skiprows + header
+            elif isinstance(header, list):
+                if len(header) == 1 and isinstance(header[0], int):
+                    if header[0] < 0:
+                        raise ValueError(
+                            f"header must be a non-negative integer, got {header[0]}"
+                        )
+                    polars_kwargs["skip_rows"] = num_skiprows + header[0]
+                else:
+                    raise NotImplementedError(
+                        "Polars does not support multiple header rows"
+                    )
+            else:
+                raise TypeError(
+                    f"header must be None, 'infer', int, or list of int, got {type(header)}"
+                )
+
+            polars_kwargs["has_header"] = True
+
+        # handle encoding and encoding errors
+        if "encoding" in opts and opts["encoding"] is not None:
+            encoding = opts["encoding"]
+
+            if "encoding_errors" in opts:
+                encoding_errors = opts["encoding_errors"]
+
+                if encoding_errors == "replace":
+                    encoding = f"{encoding}-lossy"
+                elif encoding_errors != "strict":
+                    raise ValueError(
+                        f"Invalid value for encoding_errors: {encoding_errors}. "
+                        "The polars engine only supports 'strict' or 'replace'."
+                    )
+
+            polars_kwargs["encoding"] = encoding
 
         if "usecols" in opts:
             usecols = opts["usecols"]
             if callable(usecols):
-                raise NotImplementedError("Polars does not support callable usecols argument")
+                raise NotImplementedError(
+                    "Polars does not support callable usecols argument"
+                )
             else:
-                polars_kwargs["columns"] = usecols  
+                polars_kwargs["columns"] = usecols
 
         if "lineterminator" in opts:
             lineterminator = opts["lineterminator"]
-            if lineterminator is not None:
-                polars_kwargs["eol_char"] = lineterminator
+            if isinstance(lineterminator, str):
+                if len(lineterminator) == 1:
+                    polars_kwargs["eol_char"] = lineterminator
+                else:
+                    raise NotImplementedError(
+                        f"Polars does not support multi-character line terminators, got '{lineterminator}'"
+                    )
 
         if "decimal" in opts:
             decimal = opts["decimal"]
@@ -185,30 +226,34 @@ class PolarsParserWrapper(ParserBase):
                     f"Polars only supports '.' or ',' as decimal separator, got '{decimal}'"
                 )
 
-        if hasattr(self, 'parse_dates') and self.parse_dates is not None:
-            if isinstance(self.parse_dates, bool):
-                polars_kwargs["try_parse_dates"] = self.parse_dates
+        if "parse_dates" in opts:
+            parse_dates = opts["parse_dates"]
+            if isinstance(parse_dates, bool):
+                polars_kwargs["try_parse_dates"] = parse_dates
             else:
                 raise NotImplementedError(
-                    "Polars does not support date parsing with `parse_dates` of specific columns. Use" \
-                    "only boolean `parse_dates` to enable date parsing for all columns."
+                    "Polars does not support date parsing with `parse_dates` of specific columns. "
+                    "Use only `parse_dates=True` to enable date parsing for all columns."
                 )
 
-        on_bad_lines = opts.get("on_bad_lines", "error")
-        if on_bad_lines == "error":
-            polars_kwargs["raise_if_empty"] = True
-            polars_kwargs["ignore_errors"] = False
-        elif on_bad_lines in {"warn", "skip"}:
-            polars_kwargs["raise_if_empty"] = False
-            polars_kwargs["ignore_errors"] = True
+        if "on_bad_lines" in opts:
+            on_bad_lines = opts["on_bad_lines"]
 
+            if callable(on_bad_lines):
+                raise NotImplementedError(
+                    "Polars does not support callable on_bad_lines argument"
+                )
+            elif on_bad_lines == ParserBase.BadLineHandleMethod.ERROR:
+                polars_kwargs["ignore_errors"] = False
 
-        # # Warn about unsupported parameters that are being used
-        # for param in unsupported:
-        #     if param in opts and opts[param] is not None:    
-        #         warnings.warn(
-        #             f"Parameter '{param}' is not supported in Polars and will be ignored.",
-        #             UserWarning
-        #         )
+            elif on_bad_lines in {
+                ParserBase.BadLineHandleMethod.WARN,
+                ParserBase.BadLineHandleMethod.SKIP,
+            }:
+                polars_kwargs["ignore_errors"] = True
+            else:
+                raise ValueError(
+                    f"Unrecognized value for on_bad_lines: {on_bad_lines}. "
+                )
 
         return polars_kwargs
