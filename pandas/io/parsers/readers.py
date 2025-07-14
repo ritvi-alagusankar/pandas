@@ -601,7 +601,6 @@ _pyarrow_unsupported = {
     "low_memory",
 }
 
-# TODO Edit this accurately
 _polars_unsupported = {
     "skipinitialspace",
     "skipfooter",
@@ -612,6 +611,8 @@ _polars_unsupported = {
     "false_values",
     "true_values",
     "verbose",
+    "comment",  # TODO : check if implementation is necessary
+    "low_memory" # TODO : check if implementation is necessary
     "keep_date_col",
     "date_parser",
     "date_format",

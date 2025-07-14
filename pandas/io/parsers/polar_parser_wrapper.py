@@ -102,10 +102,7 @@ class PolarsParserWrapper(ParserBase):
             "sep": "separator",
             "delimiter": "separator",
             "names": "new_columns",
-            "quotechar": "quote_char",
-            "comment": "comment_prefix",
             "storage_options": "storage_options",
-            "low_memory": "low_memory",
         }
 
         # Apply direct mappings
@@ -223,6 +220,17 @@ class PolarsParserWrapper(ParserBase):
                     raise NotImplementedError(
                         "Polars does not support multi-character"
                         f" line terminators, got '{lineterminator}'"
+                    )
+
+        if "quotechar" in opts:
+            quotechar = opts["quotechar"]
+            if isinstance(quotechar, str):
+                if len(quotechar) == 1:
+                    polars_kwargs["quote_char"] = quotechar
+                else:
+                    raise NotImplementedError(
+                        "Polars does not support multi-character"
+                        f" quotechar, got '{quotechar}'"
                     )
 
         if "decimal" in opts:
