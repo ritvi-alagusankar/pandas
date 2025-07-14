@@ -1244,23 +1244,19 @@ class TextFileReader(abc.Iterator):
             value = kwds.get(argname, default)
 
             # see gh-12935
+            _unsupported_args = {
+                "pyarrow": _pyarrow_unsupported,
+                "polars": _polars_unsupported,
+            }
+
             if (
-                engine == "pyarrow"
-                and argname in _pyarrow_unsupported
+                engine in _unsupported_args
+                and argname in _unsupported_args[engine]
                 and value != default
                 and value != getattr(value, "value", default)
             ):
                 raise ValueError(
-                    f"The {argname!r} option is not supported with the 'pyarrow' engine"
-                )
-            if (
-                engine == "polars"
-                and argname in _polars_unsupported
-                and value != default
-                and value != getattr(value, "value", default)
-            ):
-                raise ValueError(
-                    f"The {argname!r} option is not supported with the 'polars' engine"
+                    f"The {argname!r} option is not supported with the {engine!r} engine"
                 )
             options[argname] = value
 

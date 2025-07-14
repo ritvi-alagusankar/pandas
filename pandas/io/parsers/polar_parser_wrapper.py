@@ -169,14 +169,14 @@ class PolarsParserWrapper(ParserBase):
             for column, item in na_values.items():
                 if len(item) != 1:
                     raise TypeError(
-                        f"Invalid type for na_values: {type(na_values)}. "
+                        "Invalid type for na_values. "
                         "Polars only supports str, List[str], or Dict[str, str]."
                     )
                 else:
                     na_value = next(iter(item))
                     if not isinstance(na_value, str):
                         raise TypeError(
-                            f"Invalid type for na_values: {type(na_values)}. "
+                            "Invalid type for na_values. "
                             "Polars only supports str, List[str], or Dict[str, str]."
                         )
                     na_values_dict[column] = na_value
@@ -222,7 +222,7 @@ class PolarsParserWrapper(ParserBase):
                 else:
                     raise NotImplementedError(
                         "Polars does not support multi-character"
-                        " line terminators, got '{lineterminator}'"
+                        f" line terminators, got '{lineterminator}'"
                     )
 
         if "decimal" in opts:
@@ -234,7 +234,7 @@ class PolarsParserWrapper(ParserBase):
             else:
                 raise NotImplementedError(
                     "Polars only supports '.' or ',' as decimal separator,"
-                      "got '{decimal}'"
+                      f"got '{decimal}'"
                 )
 
         if "parse_dates" in opts:
