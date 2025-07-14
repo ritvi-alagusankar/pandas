@@ -119,65 +119,74 @@ class PolarsParserWrapper(ParserBase):
         header = opts.get("header", "infer")
         skiprows = opts.get("skiprows", 0) or 0  # Default to 0 if skiprows is None
 
-        num_skiprows = 0
-        if isinstance(skiprows, int):
-            if skiprows < 0:
-                raise ValueError(
-                    f"skiprows must be a non-negative integer, got {skiprows}"
-                )
-            num_skiprows = skiprows
-        elif isinstance(skiprows, (list, tuple)):
-            if len(skiprows) == 0:
-                num_skiprows = 0
-            elif len(skiprows) == 1 and isinstance(skiprows[0], int):
-                if skiprows[0] < 0:
-                    raise ValueError(
-                        f"skiprows must be a non-negative integer, got {skiprows[0]}"
-                    )
-                num_skiprows = skiprows[0]
-            else:
-                raise NotImplementedError(
-                    "Polars does not support skipping multiple rows by a list/tuple."
-                )
-        elif callable(skiprows):
-            raise NotImplementedError(
-                "Polars does not support callable skiprows argument."
-            )
-        else:
-            raise TypeError(
-                f"skiprows must be int, list, tuple, or callable, got {type(skiprows)}"
-            )
+        # Skiprows can only be a positive integer for the Polars engine.
+        if skiprows < 0:
+            raise ValueError(f"Skiprows must be a non-negative integer, got {skiprows}")
 
         if header is None:
             polars_kwargs["has_header"] = False
-            polars_kwargs["skip_rows"] = num_skiprows
+            polars_kwargs["skip_rows"] = skiprows
 
         else:
             if header == "infer" or header == 0:
-                polars_kwargs["skip_rows"] = num_skiprows
+                polars_kwargs["skip_rows"] = skiprows
             elif isinstance(header, int):
                 if header < 0:
                     raise ValueError(
-                        f"header must be a non-negative integer, got {header}"
+                        f"Header must be a non-negative integer, got {header}"
                     )
-                polars_kwargs["skip_rows"] = num_skiprows + header
+                polars_kwargs["skip_rows"] = skiprows + header
             elif isinstance(header, list):
                 if len(header) == 1 and isinstance(header[0], int):
                     if header[0] < 0:
                         raise ValueError(
-                            f"header must be a non-negative integer, got {header[0]}"
+                            f"Header must be a non-negative integer, got {header[0]}"
                         )
-                    polars_kwargs["skip_rows"] = num_skiprows + header[0]
+                    polars_kwargs["skip_rows"] = skiprows + header[0]
                 else:
                     raise NotImplementedError(
                         "Polars does not support multiple header rows"
                     )
             else:
                 raise TypeError(
-                    f"header must be None, 'infer', int, or list of int, got {type(header)}"
+                    f"Invalid type for header: {type(header)}. "
+                    "Expected None, 'infer', int, or list of int."
                 )
 
             polars_kwargs["has_header"] = True
+
+        # Handling NaN values
+        na_values = opts.get("na_values", None)
+
+        if na_values is None:
+            polars_kwargs["null_values"] = None
+
+        elif isinstance(na_values, set):
+            polars_kwargs["null_values"] = list(na_values)
+
+        elif isinstance(na_values, dict):
+            na_values_dict = {}
+            for column, item in na_values.items():
+                if len(item) != 1:
+                    raise TypeError(
+                        f"Invalid type for na_values: {type(na_values)}. "
+                        "Polars only supports str, List[str], or Dict[str, str]."
+                    )
+                else:
+                    na_value = next(iter(item))
+                    if not isinstance(na_value, str):
+                        raise TypeError(
+                            f"Invalid type for na_values: {type(na_values)}. "
+                            "Polars only supports str, List[str], or Dict[str, str]."
+                        )
+                    na_values_dict[column] = na_value
+            polars_kwargs["null_values"] = na_values_dict
+
+        else:
+            raise TypeError(
+                f"Invalid type for na_values: {type(na_values)}. "
+                "Polars only supports str, List[str], or Dict[str, str]."
+            )
 
         # handle encoding and encoding errors
         if "encoding" in opts and opts["encoding"] is not None:
@@ -212,7 +221,8 @@ class PolarsParserWrapper(ParserBase):
                     polars_kwargs["eol_char"] = lineterminator
                 else:
                     raise NotImplementedError(
-                        f"Polars does not support multi-character line terminators, got '{lineterminator}'"
+                        "Polars does not support multi-character"
+                        " line terminators, got '{lineterminator}'"
                     )
 
         if "decimal" in opts:
@@ -223,7 +233,8 @@ class PolarsParserWrapper(ParserBase):
                 polars_kwargs["decimal_comma"] = False
             else:
                 raise NotImplementedError(
-                    f"Polars only supports '.' or ',' as decimal separator, got '{decimal}'"
+                    "Polars only supports '.' or ',' as decimal separator,"
+                      "got '{decimal}'"
                 )
 
         if "parse_dates" in opts:
@@ -232,8 +243,9 @@ class PolarsParserWrapper(ParserBase):
                 polars_kwargs["try_parse_dates"] = parse_dates
             else:
                 raise NotImplementedError(
-                    "Polars does not support date parsing with `parse_dates` of specific columns. "
-                    "Use only `parse_dates=True` to enable date parsing for all columns."
+                    "Polars does not support date parsing with `parse_dates` "
+                    "of specific columns. Use `parse_dates=True` to "
+                    "enable date parsing for all columns."
                 )
 
         if "on_bad_lines" in opts:

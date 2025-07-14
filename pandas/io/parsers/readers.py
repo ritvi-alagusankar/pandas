@@ -605,9 +605,8 @@ _pyarrow_unsupported = {
 _polars_unsupported = {
     "skipinitialspace",
     "skipfooter",
-    "keep_default_na",  # TODO: check if this is supportable
-    "na_values",  # TODO: check if this is supportable
-    "na_filter",  # TODO: check if this is supportable
+    "keep_default_na",
+    "na_filter",
     "skip_blank_lines",
     "converters",
     "false_values",
@@ -1428,7 +1427,8 @@ class TextFileReader(abc.Iterator):
         keep_default_na = options["keep_default_na"]
         floatify = engine != "pyarrow"
         na_values, na_fvalues = _clean_na_values(
-            na_values, keep_default_na, floatify=floatify
+            na_values, keep_default_na, floatify=floatify,
+            engine=engine
         )
 
         # handle skiprows; this is internally handled by the
@@ -1679,7 +1679,8 @@ def TextParser(*args, **kwds) -> TextFileReader:
     return TextFileReader(*args, **kwds)
 
 
-def _clean_na_values(na_values, keep_default_na: bool = True, floatify: bool = True):
+def _clean_na_values(na_values, keep_default_na: bool = True, floatify: bool = True,
+                     engine: str = ""):
     na_fvalues: set | dict
     if na_values is None:
         if keep_default_na:
@@ -1700,7 +1701,7 @@ def _clean_na_values(na_values, keep_default_na: bool = True, floatify: bool = T
                 v = [v]
 
             if keep_default_na:
-                v = set(v) | STR_NA_VALUES
+                v = set(v) if engine == "polars" else set(v) | STR_NA_VALUES
 
             na_values[k] = _stringify_na_values(v, floatify)
         na_fvalues = {k: _floatify_na_values(v) for k, v in na_values.items()}
